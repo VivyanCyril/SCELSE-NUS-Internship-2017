@@ -83,9 +83,10 @@ df_ms2 <- as.data.frame(t(df_ms)) # change rows to columns
 H <- diversity(df_ms2, index = "shannon", MARGIN = 1, base = exp(1)) # Returns Shannon Diversity Index
 N <- colSums(df_ms, na.rm = TRUE) # Returns Total number of Taxa in each Sample
 S <- colSums(df_ms != 0) # Returns Number of different Species in each Sample
-mynewcols <- data.frame(Shannon_Diversity=H, Total_No_Taxa=N, Total_No_Species=S) # make data.frame from new columns
-DF <- merge(df_ts, mynewcols, all.x=TRUE) # add new columns to Sample Data
+df_ts[ , "Shannon_Index"] <- H
+df_ts[ , "Total_No_Taxa"] <- N
+df_ts[ , "Total_No_Species"] <- S
 
 
 ## select only interesting Attributes (the ones that differ for Industrial | Residential)
-tableplot(DF, select = c(Land.use, Nitrate, Magnesium, Aluminium, Chromium, Iron, Cobalt, Arsenic, Mercury, Sediment_DO, Sediment_redox_pot_ORP, Cell.Count, Shannon_Diversity, Total_No_Taxa, Total_No_Species))
+tableplot(df_ts, select = c(Land.use, Nitrate, Magnesium, Aluminium, Chromium, Iron, Cobalt, Arsenic, Mercury, Sediment_DO, Sediment_redox_pot_ORP, Cell.Count, Shannon_Index, Total_No_Taxa, Total_No_Species))
