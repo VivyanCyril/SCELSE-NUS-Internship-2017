@@ -1,7 +1,6 @@
 library("phyloseq")
 require(tabplot)
-load("~/NUS SCELSE Lena/R/R Data/sample.taxa.sediment.RData")
-load("F:/Lena/R/R Data/sample.taxa.sediment.RData")
+data(sample.taxa.sediment)
 
 
 ## Make matrix or data.frame from Phyloseq object (to use as input for tableplot)
