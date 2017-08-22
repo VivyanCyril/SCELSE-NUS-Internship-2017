@@ -1,0 +1,48 @@
+library("phyloseq")
+require(tabplot)
+library(data.table)
+data(sample.taxa.sediment)
+
+
+## Make matrix or data.frame from Phyloseq object (to use as input for tableplot)
+
+ms <- otu_table(sample.taxa.sediment, errorIfNULL = TRUE, taxa_are_rows = TRUE) # Extract OTU Table, format is matrix
+df_ms <- as.data.frame(otu_table(sample.taxa.sediment), taxa_are_rows = TRUE) # Transform OTU Table to data.frame
+rms <- transform_sample_counts(ms, function(x) x/sum(x)) # matrix values as relative abundances
+df_rms <- as.data.frame(rms) # OTU data.frame as relative abundances
+
+
+## make new data.frame with category Phylum
+
+df_rms[,"Phylum"] <- NA # add empty column
+categories <- c(rep("Proteobacteria", each=800), rep("Cyanobacteria", each=700), rep("Actinobacteria", each=1500), rep("Bacteroidetes", each=2000), rep("Firmicutes", each=500), rep("Chlamydiae", each=2857)) # make vector with random categories
+length(categories) # check length of vector
+df_rms$Phylum <- categories # replace empty column with vector (Phyla)
+
+library(reshape2)
+molten_df <- melt(df_rms) # melt data.frame
+colnames(molten_df)[2] <- "Sample" # rename column
+colnames(molten_df)[3] <- "Relative.Abundance" # rename column
+
+molten_df[molten_df==0] = NA # replace all 0 with NA
+new_df <- molten_df[complete.cases(molten_df), ] # remove all rows containing NA
+
+tableplot(new_df, sort=Relative.Abundance)
+
+
+## add Land.use information
+
+df_ts <- as.data.frame(sample_data(sample.taxa.sediment)) # Extract Sample Data, format is data.frame
+tdf_ts <- data.frame(t(df_ts)) # sample_data - columns as rows
+head(tdf_ts) # show which row holds Land.use Information -> [3,]
+LU_df <- as.data.frame(tdf_ts[3,]) # make data.frame
+Landuse_df <- data.frame(t(LU_df)) # switch columns back to rows (did not find other way to get rid of object type sample_data..)
+
+library(data.table)
+setDT(Landuse_df, keep.rownames = TRUE)[] # rownames as column
+colnames(Landuse_df)[1] <- "Sample" # rename first column
+New_df_1 <- merge(new_df, Landuse_df, by = "Sample" ) # merge data.frames together
+nrow(New_df_1) #check if added correctly
+
+
+tableplot(New_df_1, sort = Relative.Abundance, select = c(Relative.Abundance, Phylum, Land.use))
