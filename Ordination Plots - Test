@@ -1,0 +1,108 @@
+library("phyloseq")
+library("ggplot2")
+library("plyr")
+library("vegan")
+
+
+### some preprocessing 
+rts <-transform_sample_counts(sample.taxa.sediment, function(x) x/sum(x)) # relative abundance
+rtsf <- filter_taxa(rts, function(x) mean(x) > 1e-5, TRUE) # only OTUs with a mean greater than 10^-5 are kept
+ntaxa(rtsf) # only 5459 of originally 8357 taxa are kept
+
+
+## Just Samples
+## Non Metric Multidimensional Scaling and Bray Curtis Distance
+
+Ts.ord <- ordinate(rtsf, "NMDS", "bray")
+pl1 = plot_ordination(rtsf, Ts.ord, type="samples", color="Land.use", title="Samples")
+print(pl1)
+
+pl2 = plot_ordination(rtsf, Ts.ord, type="samples", color="Land.use", title="Samples") 
+pl2 + geom_polygon(aes(fill=Land.use)) + geom_point(size=5) + ggtitle("Samples") # add polygons to plot
+print(pl2)
+
+
+## MDS with different distances
+
+par(mfrow = c(3, 2))  # 3 rows and 2 columns
+
+dist_methods <- unlist(distanceMethodList) # show the available distance methods 
+print(dist_methods) # "unifrac", "wunifrac", "dpcoa" require phy_tree
+dist_methods <- dist_methods[-(1:3)] # Remove the two distance-methods that require a tree.
+dist_methods = dist_methods[-which(dist_methods=="ANY")] # remove the generic custom method (requires user-defined distance arguments)
+
+#Loop through each distance method, save each plot to a list, called plist.
+plist <- vector("list", length(dist_methods))
+names(plist) = dist_methods
+
+for (i in dist_methods){
+  iDist <- distance(rtsf, method=i)
+  iMDS <- ordinate(rtsf, "MDS", distance=iDist)
+  p <- NULL
+  p <- plot_ordination(rtsf, iMDS, type="samples", color="Land.use")
+  p <- p + ggtitle(paste("MDS using distance method ", i, sep=""))
+  plist[[i]] = p
+}
+
+# Combine results
+df = ldply(plist, function(x) x$data)
+names(df)[1] <- "distance"
+p = ggplot(df, aes(Axis.1, Axis.2, type="samples",colour=Land.use, fill=Land.use))
+p = p + geom_point(size=3, alpha=0.5)
+p = p + facet_wrap(~distance, scales="free")
+p = p + ggtitle("MDS on various distance metrics for Sediment Taxa Dataset")
+p
+
+
+
+
+## Try different ordination methods with distance = "bray"
+## Available methods: "DCA", "CCA", "RDA", "CAP", "DPCoA", "NMDS", "MDS", "PCoA"
+## "CAP" and "DpCoA" are not working
+## loop through different method parameter options of plot_ordination and save as list, called plist2
+
+dist <- "bray"
+ord_meths <- as.vector(c("DCA", "CCA", "RDA", "NMDS", "MDS", "PCoA"))
+plist2 = llply(ord_meths, function(i, physeq, dist){
+  ordi = ordinate(physeq, method=i, distance=dist)
+  plot_ordination(physeq, ordi, type="samples", color="Land.use")
+}, rtsf, dist)
+
+
+# extract the data from each of those individual plots and put it back together in one big data.frame suitable for including all plots in one graphic
+names(plist2) <- ord_meths
+pdataframe = ldply(plist2, function(x){
+  df2 = x$data[, 1:2]
+  colnames(df2) = c("Axis_1", "Axis_2")
+  return(cbind(df2, x$data))
+})
+names(pdataframe)[1] = "method"
+
+
+# use the new data.frame to make a standard faceted ggplot scatterplot
+p2 = ggplot(pdataframe, aes(Axis_1, Axis_2, colour=pdataframe$Land.use, fill=pdataframe$Land.use))
+p2 = p2 + geom_point(size=4) + geom_polygon()
+p2 = p2 + facet_wrap(~method, scales="free")
+p2 = p2 + scale_fill_brewer(type="qual", palette="Set1")
+p2 = p2 + scale_colour_brewer(type="qual", palette="Set1")
+p2 = p2 + ggtitle("Various ordination methods, distance=bray")
+p2
+
+
+
+### MDS (“PCoA”) on Unifrac Distances
+
+ordu = ordinate(rtsf, "PCoA", "unifrac", weighted=TRUE)
+plot_ordination(rtsf, ordu, color="Land.use")
+
+p4 = plot_ordination(rtsf, ordu, color="Land.use")
+p4 = p4 + geom_point(size=7, alpha=0.75)
+p4 = p4 + scale_colour_brewer(type="qual", palette="Set1")
+p4 + ggtitle("MDS/PCoA on weighted-UniFrac distance") ## cannot because no phy_tree available
+
+
+
+## Biplot
+
+pl3 = plot_ordination(rtsf, TS.ord, type="biplot", color="Land.Use", title="biplot")
+print(pl3) #cannot, maybe need tax_table to display, since biplot combines type=samples and type=taxa ?
