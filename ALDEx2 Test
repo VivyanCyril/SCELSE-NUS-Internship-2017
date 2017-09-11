@@ -1,0 +1,41 @@
+require(ALDEx2)
+require(phyloseq)
+require(ggplot2)
+
+
+### some preprocessing
+# For ALDEx2 do not use transform_sample_counts function
+# because the data is clr transformed when using aldex.clr
+
+tsf <- filter_taxa(sample.taxa.sediment, function(x) sum(x > 3) > (0.1*length(x)), TRUE) # Remove taxa not seen more than 3 times in at least 20% of samples
+ntaxa(tsf) # only 806 of originally 8357 taxa are kept
+bigQ <- as.data.frame(otu_table(tsf), taxa_are_rows = TRUE)
+
+dfsd <- as.data.frame(sample_data(sample.taxa.sediment)) # Extract Sample Data
+dfsd$Land.use #show which Samples are Industrial | Residential
+
+conds <- c(rep("Industrial", 30), rep("Residential", 30)) # set comparison groups
+
+x <- aldex(bigQ, conds, mc.samples=128, test="t", effect=TRUE,
+           include.sample.summary=FALSE, denom="iqlr", verbose=FALSE)
+
+aldex.plot(x, type="MA", test="welch")
+aldex.plot(x, type="MW", test="welch") # effect plot
+
+x.clr <- aldex.clr(bigQ, conds, mc.samples=128, denom="iqlr", verbose=TRUE) # aldex with clr transformed data
+
+x.tt <- aldex.ttest(x.clr, conds, paired.test=TRUE) # t-test
+x.effect <- aldex.effect(x.clr, conds, include.sample.summary=FALSE, verbose=TRUE) # effect data
+x.all <- data.frame(x.tt,x.effect) # merge t-test and effect data into one object
+
+par(mfrow=c(1,2)) # plot the data
+aldex.plot(x.all, type="MA", test="welch")
+aldex.plot(x.all, type="MW", test="welch")
+
+head(x.all) # examine the data
+
+
+# identify which values are significant in both the t-test and glm tests
+found.by.all <- which(x.all$we.eBH < 0.05 & x.all$wi.eBH < 0.05)
+
+Sig.Tab <- subset(x.all, x.all$we.eBH < 0.05 & x.all$wi.eBH < 0.05) # keep only significant
