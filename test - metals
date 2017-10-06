@@ -1,0 +1,54 @@
+library(phyloseq)
+library(ggplot2)
+library(vegan)
+library(compositions)
+
+#Define functions
+#Geometric mean  calculation
+gm_mean = function(x, na.rm=TRUE){
+  exp(sum(log(x[x > 0]), na.rm=na.rm) / length(x))
+}
+
+#Centered Log-Ratio (CLR)
+clr = function(x, base=2){
+  x = log((x / gm_mean(x)), base)
+  x[!is.finite(x) | is.na(x)] = 0.0
+  return(x)
+}
+
+#Format data
+Metals_Sed[ Metals_Sed == "<0.000" ] <- NA # remove values below detection limit
+metals.ra = as.data.frame(acomp(Metals_Sed[,5:ncol(Metals_Sed)])) # convert compositional object to class acomp and save as data.frame
+metals.clr.byrow = as.data.frame(apply(metals.ra,1,clr)) # apply function clr
+
+metals.clr <- as.data.frame(t(metals.clr.byrow)) # change rows to column
+metals.sizes = cbind(as(Metals_Sed[,1:4], "data.frame"), metals.clr) # combine size parameters with clr values
+metals.sizes <- metals.sizes[-c(121:159), ] # remove rows without size info
+
+
+# check for Na, NaN, Inf values
+any(is.na(metals.sizes)) 
+apply(metals.sizes,2, function(x) any(is.nan(x))) 
+apply(metals.sizes,2, function(x) any(is.infinite(x)))
+
+class(metals.sizes$Size) # check if class for categorical variable is "factor" --> NO
+levels(as.factor(metals.sizes$Size)) # Show levels
+
+
+# loop through lm for all metals
+n <- 18
+lms.metals <- lapply(5:n, function(x) lm(metals.sizes[,x] ~ as.factor(metals.sizes$Size)))
+metals.coef <- sapply(lms.metals, coef) # extract coefficients
+metals_names <- c("Mg", "Al", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "As", "Cd", "Pb-01", "Pb-02", "Pb-03")
+colnames(metals.coef) <- metals_names # rename columns
+
+fc<- exp(metals.coef) ## Antilog coefficients
+metals.fold.change <- log2(fc) ## Convert to log2 fold change
+
+summaries <- lapply(lms.metals, summary)
+metals.co <- lapply(summaries, function(x) x$coefficients[, c(1,4)]) # get coefficents with p values
+metals.co.p <- as.data.frame(metals.co)
+
+
+
+
