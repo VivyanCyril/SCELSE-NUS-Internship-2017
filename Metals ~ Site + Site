@@ -48,3 +48,22 @@ ggplot(data = lm.metals.result ,aes(x=row.names(lm.metals.result),y=Log2Fc, fill
   scale_x_discrete("") + coord_flip() +
   scale_fill_manual(values = c("positive" = "#D3D3D3", "negative" = "#484848"), guide = F) +
   theme_bw() + theme(axis.ticks.y=element_blank(), aspect.ratio = 0.5, axis.text = element_text(color = "black"))
+  
+  
+ 
+ 
+# Metals Correlations 
+ 
+m.metals <- metals.sizes[,-c(1:4)] # keep only metals
+rownames(m.metals) <- metals.sizes[,1] # sample id as rownames
+
+cor(m.metals)
+pairs(m.metals) # visualize 
+library(psych)
+pairs.panels(m.metals) # very pretty
+
+# visualize points as densities
+pairs(m.metals, panel = function(...) smoothScatter(..., nrpoints=0, add=TRUE), oma=c(2,2,2,2))
+
+corr.test(m.metals) # gives a table of correlation coefficients and one of p-values
+
